@@ -1,0 +1,22 @@
+apiVersion: governance.re8ch.com/v1alpha1
+kind: ProjectBinding
+metadata:
+  name: headlamp-advanced-fabric
+spec:
+  parent:
+    catalog: platform
+    repository: git@gitlab.com:reachievellc/service-backend.git
+    catalogPath: catalogs/platform/modules/headlamp-advanced-fabric
+    submodulePath: catalogs/platform/modules/headlamp-advanced-fabric/source
+  identity:
+    maintainerAddress: headlamp-advanced-fabric-maintain@phonaid.com
+    accountClass: project-maintainer
+    googleWorkspacePolicy: eligible
+  workspace:
+    name: headlamp-advanced-fabric-maintain
+    oneActivePerAccount: true
+    branchPrefix: workspace/headlamp-advanced-fabric-maintain/
+  contract:
+    transport: branch-pull-request
+    completion: pull-request-closed
+    evidenceAuthority: kubernetes
