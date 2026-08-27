@@ -14,3 +14,20 @@ npm run package
 
 The plugin expects `networking.re8ch.com/node-status=true` ConfigMaps in
 `kube-system`, produced by the Advanced Fabric Helm chart.
+
+## Penrose Triangle Observer
+
+The `Penrose Triangle` sidebar page is a read-only scheduling observability
+surface. It shows NodeProfile or projected node labels, allocatable capacity,
+installed kube-scheduler profiles and plugins, observed scheduler assignments,
+and WorkloadTriangle Desired/Actual state. If the scheduling CRDs are not yet
+installed, the Kubernetes Node, Pod and scheduler ConfigMap views remain
+available.
+
+Kubernetes does not persist every scheduler scoring candidate. The first
+version therefore distinguishes declared policy and final Pod binding from a
+future simulator/observer evidence feed instead of presenting inferred scores
+as scheduler decisions.
+
+The service-outcome model, disturbance trajectory and Pareto contract are
+documented in [`docs/PENROSE_OBSERVER.md`](docs/PENROSE_OBSERVER.md).
