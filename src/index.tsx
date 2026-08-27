@@ -2,6 +2,7 @@ import { K8s, registerRoute, registerSidebarEntry } from '@kinvolk/headlamp-plug
 import { SectionBox, StatusLabel, Table } from '@kinvolk/headlamp-plugin/lib/components/common';
 import { Alert, Box, Chip, FormControl, InputLabel, MenuItem, Select, Stack, Typography } from '@mui/material';
 import React from 'react';
+import PenroseObserver from './penrose';
 
 type FabricStatus = {
   node: string;
@@ -122,3 +123,5 @@ function Dashboard() {
 
 registerSidebarEntry({name: 'advanced-fabric', url: '/advanced-fabric', icon: 'mdi:router-network', parent: '', label: 'Advanced Fabric'});
 registerRoute({path: '/advanced-fabric', sidebar: 'advanced-fabric', name: 'Advanced Fabric', component: () => <Dashboard/>});
+registerSidebarEntry({name: 'penrose-triangle', url: '/penrose-triangle', icon: 'mdi:triangle-outline', parent: '', label: 'Penrose Triangle'});
+registerRoute({path: '/penrose-triangle', sidebar: 'penrose-triangle', name: 'Penrose Triangle Observer', component: () => <PenroseObserver/>});
