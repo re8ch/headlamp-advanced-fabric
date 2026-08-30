@@ -1,7 +1,10 @@
 # Headlamp Advanced Fabric
 
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/headlamp-advanced-fabric)](https://artifacthub.io/packages/search?repo=headlamp-advanced-fabric)
+
 Standard Headlamp plugin for inspecting Advanced Fabric node datapath mode,
-FRR/BGP/BFD health, kernel ECMP routes and per-node path decisions.
+FRR/BGP/BFD health, kernel ECMP routes, per-node path decisions and the
+NWQ-1/DNSQ-1 network and DNS measurement surface.
 
 ## Build
 
@@ -12,8 +15,9 @@ npm run build
 npm run package
 ```
 
-The plugin expects `networking.re8ch.com/node-status=true` ConfigMaps in
-`kube-system`, produced by the Advanced Fabric Helm chart.
+The plugin expects `networking.re8ch.com/node-status=true` and
+`app.kubernetes.io/component=network-quality` ConfigMaps in `kube-system`,
+produced by the Advanced Fabric Helm chart.
 
 ## Penrose Triangle Observer
 
