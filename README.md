@@ -21,15 +21,12 @@ produced by the Advanced Fabric Helm chart.
 
 ## AmongClusters
 
-`AmongClusters` is the read-only multi-cluster collaboration view. It reads the
-owner-reviewed `among-clusters-catalog` ConfigMap from the hub cluster, probes
-every managed Headlamp context through the existing OIDC session, and combines
-live Kubernetes version, Node, Namespace, Pod and Service observations. The
-page deliberately keeps declared shared-service metadata separate from API
-reachability: publishing an endpoint in the catalog does not create a tunnel,
-copy credentials, or imply data-plane federation.
-Authentication failures are displayed as `Sign in required`, rather than being
-misreported as a network-unreachable cluster.
+`AmongClusters` is a read-only view over the independent AmongClusters service
+CRDs in the Hub cluster. Cluster agents, not the browser, provide signed health
+summaries and collaboration events. The plugin never probes remote Headlamp
+contexts and never uses a remote user's OIDC session to derive Alive state.
+Published-service contracts remain separate from connectivity and never create
+a tunnel, copy credentials, or imply data-plane federation.
 
 ## Penrose Triangle Observer
 
