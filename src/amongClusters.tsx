@@ -27,7 +27,7 @@ type Catalog = {
   clusters: ConnectedCluster[];
 };
 
-type Probe = {alive: boolean; checkedAt: number; version?: string; error?: string};
+type Probe = {alive: boolean; checkedAt: number; version?: string; error?: string; authenticationRequired?: boolean};
 
 const raw = (item: any) => item?.jsonData || item || {};
 const clusterOf = (item: any) => item?.cluster || item?._clusterName || '';
@@ -68,7 +68,9 @@ function AmongClusters() {
           const version = await K8s.getVersion(context);
           return [context, {alive: true, checkedAt, version: String(version.gitVersion || version.git_version || 'reachable')}] as const;
         } catch (error) {
-          return [context, {alive: false, checkedAt, error: String(error)}] as const;
+          const message = String(error);
+          const authenticationRequired = /id-token|refresh-token|unauthorized|authentication|\b401\b/i.test(message);
+          return [context, {alive: false, checkedAt, error: message, authenticationRequired}] as const;
         }
       }));
       if (active) setProbes(Object.fromEntries(results));
@@ -87,7 +89,7 @@ function AmongClusters() {
     const runningPods = clusterPods.filter(item => raw(item).status?.phase === 'Running').length;
     const nsCount = (namespaces || []).filter(item => clusterOf(item) === cluster.context).length;
     const serviceCount = (services || []).filter(item => clusterOf(item) === cluster.context).length;
-    const state = !available ? 'Not configured' : !probe ? 'Probing' : !probe.alive ? 'Unreachable' :
+    const state = !available ? 'Not configured' : !probe ? 'Probing' : probe.authenticationRequired ? 'Sign in required' : !probe.alive ? 'Unreachable' :
       clusterNodes.length > 0 && ready < clusterNodes.length ? 'Degraded' : 'Alive';
     return {...cluster, available, probe, state, nodes: clusterNodes.length, ready, pods: clusterPods.length,
       runningPods, namespaces: nsCount, serviceCount};
@@ -96,6 +98,7 @@ function AmongClusters() {
     cluster: cluster.displayName, owner: cluster.owner, ...service,
   })));
   const alive = rows.filter(row => row.state === 'Alive').length;
+  const authenticationRequired = rows.filter(row => row.state === 'Sign in required').length;
   const loading = rows.some(row => row.state === 'Probing');
   const resourceErrors = [nodeError, namespaceError, podError, serviceError].filter(Boolean);
 
@@ -109,6 +112,7 @@ function AmongClusters() {
     <Stack direction="row" gap={1} sx={{my: 2}} flexWrap="wrap">
       <Chip label={`${rows.length} managed contexts`}/>
       <Chip color="success" label={`${alive} alive`}/>
+      <Chip color={authenticationRequired ? 'warning' : 'default'} label={`${authenticationRequired} sign-in required`}/>
       <Chip color={rows.some(row => row.state === 'Unreachable') ? 'error' : 'default'} label={`${rows.filter(row => row.state === 'Unreachable').length} unreachable`}/>
       <Chip label={`${sharedRows.length} published services`}/>
     </Stack>
@@ -116,7 +120,7 @@ function AmongClusters() {
       <Table data={rows} columns={[
         {header: 'Cluster', accessorFn: (row: any) => <Stack><Typography>{row.displayName}</Typography><Typography variant="caption" color="text.secondary">{row.context}</Typography></Stack>},
         {header: 'Owner / role', accessorFn: (row: any) => `${row.owner} / ${row.role}`},
-        {header: 'Alive', accessorFn: (row: any) => <StatusLabel status={row.state === 'Alive' ? 'success' : row.state === 'Degraded' || row.state === 'Probing' ? 'warning' : 'error'}>{row.state}</StatusLabel>},
+        {header: 'Alive', accessorFn: (row: any) => <StatusLabel status={row.state === 'Alive' ? 'success' : row.state === 'Degraded' || row.state === 'Probing' || row.state === 'Sign in required' ? 'warning' : 'error'}>{row.state}</StatusLabel>},
         {header: 'Kubernetes', accessorFn: (row: any) => row.probe?.version || '—'},
         {header: 'Nodes ready', accessorFn: (row: any) => `${row.ready}/${row.nodes}`},
         {header: 'Pods running', accessorFn: (row: any) => `${row.runningPods}/${row.pods}`},
@@ -136,7 +140,7 @@ function AmongClusters() {
         {header: 'Declared status', accessorFn: (row: any) => <StatusLabel status={row.status === 'active' ? 'success' : 'warning'}>{row.status || 'declared'}</StatusLabel>},
       ] as any}/>
     </SectionBox>
-    <Alert severity="info" sx={{mt: 2}}>共享服务表是双方 owner-reviewed 的发布契约，不代表自动共享数据、Secret、Service 网络或跨组织管理员权限。API 探测失败也不会自动修改目标集群。</Alert>
+    <Alert severity="info" sx={{mt: 2}}>共享服务表是双方 owner-reviewed 的发布契约，不代表自动共享数据、Secret、Service 网络或跨组织管理员权限。“Sign in required”表示控制面链路可用但当前浏览器尚未建立或续期该 owner 的 OIDC 会话；API 探测失败不会自动修改目标集群。</Alert>
   </Box>;
 }
 

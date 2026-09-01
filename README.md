@@ -28,6 +28,8 @@ live Kubernetes version, Node, Namespace, Pod and Service observations. The
 page deliberately keeps declared shared-service metadata separate from API
 reachability: publishing an endpoint in the catalog does not create a tunnel,
 copy credentials, or imply data-plane federation.
+Authentication failures are displayed as `Sign in required`, rather than being
+misreported as a network-unreachable cluster.
 
 ## Penrose Triangle Observer
 
