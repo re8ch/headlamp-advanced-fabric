@@ -1,6 +1,6 @@
 {
   "name": "@re8ch/headlamp-advanced-fabric",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "Headlamp console for Advanced Fabric, Penrose scheduling and AmongClusters collaboration state",
   "scripts": {
     "build": "headlamp-plugin build",

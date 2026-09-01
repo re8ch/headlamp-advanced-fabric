@@ -45,6 +45,17 @@ function readyNode(item: any) {
     condition.type === 'Ready' && condition.status === 'True');
 }
 
+function needsAuthentication(error: any, clusterConfig: any) {
+  const message = String(error);
+  const status = Number(error?.status || error?.response?.status || 0);
+  const oidc = String(clusterConfig?.auth_type || clusterConfig?.authType || '').toLowerCase() === 'oidc';
+  // Headlamp's Go reverse proxy currently maps a missing/expired OIDC session to
+  // 502 after logging "No valid id-token ... without refresh-token". The body
+  // does not preserve that message, so the browser only receives Bad Gateway.
+  return /id-token|refresh-token|unauthorized|authentication|\b401\b/i.test(message) ||
+    (oidc && status === 502 && /bad gateway|unreachable/i.test(message));
+}
+
 function AmongClusters() {
   const [catalogMap, catalogError] = K8s.ResourceClasses.ConfigMap.useGet(
     'among-clusters-catalog', 'headlamp', {cluster: 're8ch-k3s'} as any);
@@ -69,7 +80,7 @@ function AmongClusters() {
           return [context, {alive: true, checkedAt, version: String(version.gitVersion || version.git_version || 'reachable')}] as const;
         } catch (error) {
           const message = String(error);
-          const authenticationRequired = /id-token|refresh-token|unauthorized|authentication|\b401\b/i.test(message);
+          const authenticationRequired = needsAuthentication(error, configured[context]);
           return [context, {alive: false, checkedAt, error: message, authenticationRequired}] as const;
         }
       }));
