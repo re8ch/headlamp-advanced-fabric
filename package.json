@@ -1,14 +1,14 @@
 {
   "name": "@re8ch/headlamp-advanced-fabric",
-  "version": "0.11.0",
-  "description": "Headlamp console for Advanced Fabric, Penrose scheduling and AmongClusters collaboration state",
+  "version": "0.12.0",
+  "description": "Headlamp console for Advanced Fabric and Penrose scheduling observability",
   "scripts": {
     "build": "headlamp-plugin build",
     "lint": "headlamp-plugin lint",
     "package": "headlamp-plugin package",
     "tsc": "headlamp-plugin tsc"
   },
-  "keywords": ["headlamp", "cilium", "frr", "bgp", "ecmp", "networking", "scheduler", "dra", "penrose", "multicluster", "amongclusters"],
+  "keywords": ["headlamp", "cilium", "frr", "bgp", "ecmp", "networking", "scheduler", "dra", "penrose"],
   "prettier": "@headlamp-k8s/eslint-config/prettier-config",
   "eslintConfig": {"extends": ["@headlamp-k8s", "prettier", "plugin:jsx-a11y/recommended"]},
   "license": "Apache-2.0",

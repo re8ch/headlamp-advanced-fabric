@@ -19,15 +19,6 @@ The plugin expects `networking.re8ch.com/node-status=true` and
 `app.kubernetes.io/component=network-quality` ConfigMaps in `kube-system`,
 produced by the Advanced Fabric Helm chart.
 
-## AmongClusters
-
-`AmongClusters` is a read-only view over the independent AmongClusters service
-CRDs in the Hub cluster. Cluster agents, not the browser, provide signed health
-summaries and collaboration events. The plugin never probes remote Headlamp
-contexts and never uses a remote user's OIDC session to derive Alive state.
-Published-service contracts remain separate from connectivity and never create
-a tunnel, copy credentials, or imply data-plane federation.
-
 ## Penrose Triangle Observer
 
 The `Penrose Triangle` sidebar page is a read-only scheduling observability
