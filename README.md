@@ -23,13 +23,13 @@ The plugin expects `networking.re8ch.com/node-status=true` and
 `app.kubernetes.io/component=network-quality` ConfigMaps in `kube-system`,
 produced by the Advanced Fabric Helm chart.
 
-The primary overview renders optimality, stability, and failure independence as
-three mathematically independent `[0,1]` radar axes. Values are not normalized
-against one another or constrained to sum to one. Each node overlays persisted
-SVG O/S/I polygons with a sequential time color scale. Missing axes are omitted,
-not plotted as zero. Clicking a triangle opens raw evidence and rule-based
-diagnosis; the existing measurement, node, ECMP, BGP, decision and peer tables
-remain available below the quantitative overview.
+The primary overview selects one Service or Node assessment and renders one
+large O/S/I card rather than a table of miniature triangles. Optimality,
+stability, and failure independence remain mathematically independent `[0,1]`
+axes; missing axes are omitted, not plotted as zero. Service cards also show the
+measured inflow counters, rates, window, sample count, confidence, and formula
+operands published by the controller. Existing measurement, node, ECMP, BGP,
+decision and peer tables remain available below the selected assessment.
 
 ## Penrose Triangle Observer
 
