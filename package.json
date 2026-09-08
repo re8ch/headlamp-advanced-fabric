@@ -1,6 +1,6 @@
 {
   "name": "@re8ch/headlamp-advanced-fabric",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Headlamp console for Advanced Fabric and Penrose scheduling observability",
   "scripts": {
     "build": "headlamp-plugin build",
@@ -8,11 +8,35 @@
     "package": "headlamp-plugin package",
     "tsc": "headlamp-plugin tsc"
   },
-  "keywords": ["headlamp", "cilium", "frr", "bgp", "ecmp", "networking", "scheduler", "dra", "penrose"],
+  "keywords": [
+    "headlamp",
+    "cilium",
+    "frr",
+    "bgp",
+    "ecmp",
+    "networking",
+    "scheduler",
+    "dra",
+    "penrose"
+  ],
   "prettier": "@headlamp-k8s/eslint-config/prettier-config",
-  "eslintConfig": {"extends": ["@headlamp-k8s", "prettier", "plugin:jsx-a11y/recommended"]},
+  "eslintConfig": {
+    "extends": [
+      "@headlamp-k8s",
+      "prettier",
+      "plugin:jsx-a11y/recommended"
+    ]
+  },
   "license": "Apache-2.0",
-  "devDependencies": {"@kinvolk/headlamp-plugin": "^0.14.0"},
-  "dependencies": {"@mui/material": "^7.0.0", "@iconify/react": "^6.0.0"},
-  "overrides": {"typescript": "5.6.2", "ws": "8.21.0"}
+  "devDependencies": {
+    "@kinvolk/headlamp-plugin": "^0.14.0"
+  },
+  "dependencies": {
+    "@mui/material": "^7.0.0",
+    "@iconify/react": "^6.0.0"
+  },
+  "overrides": {
+    "typescript": "5.6.2",
+    "ws": "8.21.0"
+  }
 }

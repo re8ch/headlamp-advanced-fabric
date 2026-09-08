@@ -1,5 +1,12 @@
 # Headlamp Advanced Fabric
 
+The Advanced Fabric landing page follows a strict Measurement → Evidence →
+Inference → Recommendation → Validation pipeline. It treats stale or missing
+host/pod evidence as unknown, measures stability from rolling loss/latency
+variance plus BGP/route churn, and evaluates independence from provider, ASN,
+failure domain, gateway and tunnel metadata. BGP completeness and candidate
+peer counts are corroborating evidence, not health scores.
+
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/headlamp-advanced-fabric)](https://artifacthub.io/packages/search?repo=headlamp-advanced-fabric)
 
 Standard Headlamp plugin for inspecting Advanced Fabric node datapath mode,
