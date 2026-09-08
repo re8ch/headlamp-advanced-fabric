@@ -1,13 +1,13 @@
-version: 0.9.0
+version: 0.16.0
 name: advanced-fabric
 displayName: Advanced Fabric
-createdAt: "2026-08-21T07:20:00Z"
-description: Observe node datapaths, ECMP/BGP decisions, DNS quality and per-node network-intelligence triangle evidence.
+createdAt: "2026-09-08T18:56:12Z"
+description: Inspect concrete Service inflow measurements and select one large O/S/I assessment card alongside Advanced Fabric datapath evidence.
 license: Apache-2.0
 homeURL: https://github.com/re8ch/headlamp-advanced-fabric
 containersImages: []
 annotations:
-  headlamp/plugin/archive-url: https://github.com/re8ch/headlamp-advanced-fabric/releases/download/v0.9.0/re8ch-headlamp-advanced-fabric-0.9.0.tar.gz
-  headlamp/plugin/archive-checksum: SHA256:ad4b33427b0d22fdd01cb0c2e0118bd2903f04e87955a694446e38e5b783cab9
+  headlamp/plugin/archive-url: https://github.com/re8ch/headlamp-advanced-fabric/releases/download/v0.16.0/re8ch-headlamp-advanced-fabric-0.16.0.tar.gz
+  headlamp/plugin/archive-checksum: SHA256:ed284c98ce58e51471f66945a28515aa9752014d32fb34cf2e48ff25397f98bf
   headlamp/plugin/version-compat: ">=0.42.0"
   headlamp/plugin/distro-compat: in-cluster,web,docker-desktop,desktop
