@@ -1,243 +1,113 @@
 import { K8s, registerRoute, registerSidebarEntry } from '@kinvolk/headlamp-plugin/lib';
-import { SectionBox, StatusLabel, Table } from '@kinvolk/headlamp-plugin/lib/components/common';
-import { Alert, Box, Chip, FormControl, InputLabel, MenuItem, Select, Stack, Typography } from '@mui/material';
+import { SectionBox, Table } from '@kinvolk/headlamp-plugin/lib/components/common';
+import { Alert, Box, Chip, Dialog, DialogContent, DialogTitle, Divider, Stack, Typography } from '@mui/material';
 import React from 'react';
 import PenroseObserver from './penrose';
 
-type FabricStatus = {
-  node: string;
-  observedAt?: string;
-  datapath?: {mode?: string; tunnelInterfaces?: string[]};
-  frr?: {state?: string; bgp?: unknown; bfd?: unknown};
-  bgpRib?: Array<{prefix: string; paths: any[]}>;
-  ecmpRoutes?: unknown[];
-  peerRoutes?: Array<{name?: string; provider?: string; region?: string; failureDomain?: string; gateway?: string; tunnel?: string; asn?: number}>;
-  pathRankings?: Record<string, unknown>;
-  routeDynamics?: {startedAt?: string; samples?: number; bgpChanges?: number; routeChanges?: number};
-};
+type Score = number | null;
+type FabricStatus = {node:string; observedAt?:string; frr?:{bgp?:unknown}; pathRankings?:Record<string,unknown>;
+  peerRoutes?:Array<{name?:string;provider?:string;failureDomain?:string;gateway?:string;tunnel?:string;asn?:number}>;
+  routeDynamics?:{samples?:number;bgpChanges?:number;routeChanges?:number}; [key:string]:unknown};
+type QualitySnapshot = {sourceNode:string;sourcePlane:string;observedAt?:string;
+  paths?:Array<{lossRatio?:number;p95Ms?:number}>;dns?:Array<{failureRatio?:number}>;
+  history?:{windowSamples?:number;lossStdDev?:number;p95StdDevMs?:number};[key:string]:unknown};
+type OsiSnapshot = {observedAt:string;o:Score;s:Score;i:Score};
+type Row = OsiSnapshot & {node:string;confidence:Score;diagnosis:string;evidence:unknown;history:OsiSnapshot[]};
 
-type QualitySnapshot = {
-  sourceNode: string;
-  sourcePlane: string;
-  observedAt?: string;
-  paths?: Array<{lossRatio?: number; p95Ms?: number}>;
-  dns?: Array<{serverRole?: string; protocol?: string; failureRatio?: number; p95Ms?: number}>;
-  history?: {windowSamples?: number; windowSeconds?: number; lossMean?: number; lossStdDev?: number; p95MeanMs?: number; p95StdDevMs?: number};
-};
+const FRESHNESS_MS=120000; const HISTORY_KEY='re8ch.advanced-fabric.osi-history.v1'; const HISTORY_LIMIT=96;
+const clamp=(v:number)=>Math.max(0,Math.min(1,v));
+const rounded=(v:Score)=>v===null?null:Math.round(v*1000)/1000;
+const fresh=(v?:{observedAt?:string})=>{const t=Date.parse(v?.observedAt||'');return Number.isFinite(t)&&Date.now()-t<=FRESHNESS_MS;};
 
-type IntelligenceRow = {node: string; optimality: string; stability: string; independence: string;
-  diagnosis: string; recommendation: string; validation: string; confidence: string; severity: 'error'|'warning'|'success'|'info'};
+function bgpPeers(value:any):[number,number]{let up=0; let total=0;function visit(v:any){if(!v||typeof v!=='object')return;
+  for(const [key,child] of Object.entries(v))if(key==='peers'&&child&&typeof child==='object')for(const peer of Object.values(child) as any[]){
+    total++;if(String(peer?.state||peer?.peerState).toLowerCase()==='established')up++;}else visit(child);}visit(value);return[up,total];}
 
-const FRESHNESS_MS = 120000;
-
-function fresh(item?: {observedAt?: string}) {
-  const value = Date.parse(item?.observedAt || '');
-  return Number.isFinite(value) && Date.now() - value <= FRESHNESS_MS;
-}
-
-function buildIntelligence(status: FabricStatus, quality: QualitySnapshot[]): IntelligenceRow {
-  const statusFresh = fresh(status);
-  const samples = quality.filter(item => item.sourceNode === status.node);
-  const current = samples.filter(fresh);
-  const host = current.find(item => item.sourcePlane === 'host');
-  const pod = current.find(item => item.sourcePlane === 'pod');
-  if (!host && !pod) return {node: status.node, optimality: 'unknown', stability: 'unknown', independence: 'unknown',
-    diagnosis: 'missing or stale measurement', recommendation: 'restore host and pod probes before changing routes',
-    validation: 'await two fresh planes and repeat the full matrix', confidence: 'none', severity: 'info'};
-
-  const paths = current.flatMap(item => item.paths || []);
-  const lossCount = paths.filter(path => Number(path.lossRatio || 0) > 0).length;
-  const worstP95 = Math.max(0, ...paths.map(path => Number(path.p95Ms || 0)));
-  const lossRatio = paths.length ? lossCount / paths.length : 1;
-  const candidatePeers = new Set(Object.values(status.pathRankings || {}).flatMap((items: any) =>
-    (items || []).map((item: any) => item.peer).filter(Boolean)));
-  const candidateScores = Object.values(status.pathRankings || {}).flatMap((items: any) =>
-    (items || []).map((item: any) => Number(item.score)).filter(Number.isFinite)).sort((a, b) => a - b);
-  const domains = new Set((status.peerRoutes || []).filter(peer => candidatePeers.has(peer.name)).map(peer =>
-    [peer.provider, peer.asn, peer.failureDomain, peer.gateway, peer.tunnel].map(value => value || '?').join('/')));
-  const metadataComplete = statusFresh && candidatePeers.size > 0 && domains.size > 0 && ![...domains].some(value => value.includes('?'));
-  const histories = current.map(item => item.history).filter(Boolean) as NonNullable<QualitySnapshot['history']>[];
-  const historyReady = histories.length === current.length && histories.every(item => Number(item.windowSamples || 0) >= 3);
-  const lossVariance = historyReady ? Math.max(...histories.map(item => Number(item.lossStdDev || 0))) : undefined;
-  const latencyVariance = historyReady ? Math.max(...histories.map(item => Number(item.p95StdDevMs || 0))) : undefined;
-  const changes = Number(status.routeDynamics?.bgpChanges || 0) + Number(status.routeDynamics?.routeChanges || 0);
-  const dynamicsReady = statusFresh && Number(status.routeDynamics?.samples || 0) >= 3;
-  const dnsFailures = (item?: QualitySnapshot) => (item?.dns || []).filter(entry => Number(entry.failureRatio || 0) > 0).length;
-  const hostDns = dnsFailures(host);
-  const podDns = dnsFailures(pod);
-  const bgp = bgpPeers(status.frr?.bgp).split('/').map(Number);
-  const bgpIncomplete = bgp.length === 2 && bgp[1] > 0 && bgp[0] < bgp[1];
-  let diagnosis = 'dataplane within the current snapshot envelope';
-  let recommendation = 'keep current path and continue historical observation';
-  let validation = 'repeat measurement after any topology or policy change';
-  let severity: IntelligenceRow['severity'] = 'success';
-  if (hostDns > 0 && podDns === 0) {
-    diagnosis = 'host resolver and pod DNS datapath divergence'; recommendation = 'inspect host resolver/upstream path; do not change pod DNS'; severity = 'warning';
-  } else if (host && pod && lossRatio >= .25) {
-    diagnosis = 'shared host/pod dataplane or upstream degradation'; recommendation = 'shadow-probe a failure-domain-independent path before switching';
-    validation = 'switch only if shadow loss and p95 improve, then re-run both planes'; severity = 'error';
-  } else if (bgpIncomplete && lossRatio < .25 && worstP95 < 100) {
-    diagnosis = 'BGP incomplete without matching dataplane degradation'; recommendation = 'repair peer coverage separately; retain the measured path'; severity = 'warning';
-  } else if (!host || !pod) {
-    diagnosis = 'host/pod evidence incomplete'; recommendation = 'restore the missing plane before route action'; severity = 'info';
-  } else if (lossCount > 0) {
-    diagnosis = 'partial dataplane degradation'; recommendation = 'compare an independent shadow path'; severity = 'warning';
+function score(status:FabricStatus,quality:QualitySnapshot[]):Omit<Row,'history'>{
+  const samples=quality.filter(x=>x.sourceNode===status.node); const current=samples.filter(fresh);
+  const host=current.find(x=>x.sourcePlane==='host'); const pod=current.find(x=>x.sourcePlane==='pod');
+  const paths=current.flatMap(x=>x.paths||[]);let o:Score=null; let s:Score=null; let i:Score=null;
+  if(paths.length&&paths.every(x=>x.lossRatio!==undefined)){
+    const success=paths.reduce((sum,x)=>sum+1-clamp(Number(x.lossRatio)),0)/paths.length;
+    const latency=paths.map(x=>x.p95Ms).filter((x):x is number=>Number.isFinite(x));
+    if(latency.length)o=clamp(.7*success+.3*Math.exp(-Math.max(...latency)/200));
   }
-  const alternativeEvidence = candidateScores.length >= 2 ?
-    `candidate scores ${candidateScores[0]} → ${candidateScores[1]}` : 'alternative path unmeasured';
-  return {node: status.node,
-    optimality: `${Math.round((1 - lossRatio) * 1000) / 10}% loss-free · p95 ${Math.round(worstP95)} ms · ${alternativeEvidence}`,
-    stability: historyReady && dynamicsReady ? `loss σ ${lossVariance} · p95 σ ${latencyVariance} ms · churn ${changes}` : 'unknown · historical baseline pending',
-    independence: metadataComplete ? `${domains.size} distinct provider/ASN/domain/gateway/tunnel combinations` : 'unknown · failure-domain metadata/evidence incomplete',
-    diagnosis, recommendation, validation,
-    confidence: host && pod && historyReady && metadataComplete && dynamicsReady ? 'high' : host && pod ? 'medium' : 'low', severity};
-}
-
-function parseStatus(item: any): FabricStatus | null {
-  try { return JSON.parse(item.jsonData?.data?.['status.json'] || item.data?.['status.json']); } catch { return null; }
-}
-
-function parseQuality(item: any): QualitySnapshot | null {
-  try { return JSON.parse(item.jsonData?.data?.['result.json'] || item.data?.['result.json']); } catch { return null; }
-}
-
-function bgpPeers(value: any): string {
-  let up = 0;
-  let total = 0;
-  function visit(current: any) {
-    if (!current || typeof current !== 'object') return;
-    for (const [key, child] of Object.entries(current)) {
-      if (key === 'peers' && child && typeof child === 'object') {
-        for (const peer of Object.values(child) as any[]) {
-          total += 1;
-          if (String(peer?.state || peer?.peerState).toLowerCase() === 'established') up += 1;
-        }
-      } else visit(child);
-    }
+  const histories=current.map(x=>x.history).filter(Boolean) as NonNullable<QualitySnapshot['history']>[];
+  const dynamics=status.routeDynamics;
+  if(histories.length===2&&histories.every(x=>Number(x.windowSamples||0)>=3)&&Number(dynamics?.samples||0)>=3){
+    const loss=Math.max(...histories.map(x=>Number(x.lossStdDev||0)));
+    const latency=Math.max(...histories.map(x=>Number(x.p95StdDevMs||0)));
+    const churn=(Number(dynamics?.bgpChanges||0)+Number(dynamics?.routeChanges||0))/Math.max(1,Number(dynamics?.samples));
+    s=clamp(1-(.5*clamp(loss/.25)+.3*clamp(latency/200)+.2*clamp(churn)));
   }
-  visit(value);
-  return `${up}/${total}`;
+  const names=new Set(Object.values(status.pathRankings||{}).flatMap((items:any)=>(items||[]).map((x:any)=>x.peer).filter(Boolean)));
+  const peers=(status.peerRoutes||[]).filter(x=>names.has(x.name));
+  const dims:Array<'provider'|'asn'|'failureDomain'|'gateway'|'tunnel'>=['provider','asn','failureDomain','gateway','tunnel'];
+  if(peers.length&&peers.every(p=>dims.every(k=>p[k]!==undefined&&p[k]!=='')))
+    i=dims.reduce((sum,k)=>sum+clamp(new Set(peers.map(p=>String(p[k]))).size/peers.length),0)/dims.length;
+  const dnsFailures=(x?:QualitySnapshot)=>(x?.dns||[]).filter(d=>Number(d.failureRatio||0)>0).length;
+  const loss=Math.max(...paths.map(x=>Number(x.lossRatio||0)),0);let diagnosis='Measured dataplane is inside the current envelope.';
+  if(!host||!pod)diagnosis='Host/pod evidence is incomplete or stale.';
+  else if(dnsFailures(host)>0&&dnsFailures(pod)===0)diagnosis='Host resolver and pod DNS datapath diverge.';
+  else if(loss>=.25)diagnosis='Host and pod evidence indicates shared dataplane or upstream degradation.';
+  else if(loss>0)diagnosis='Partial dataplane degradation is present.';
+  else {const [up,total]=bgpPeers(status.frr?.bgp);if(total>0&&up<total)diagnosis='BGP is incomplete without matching measured dataplane degradation.';}
+  const known=[o,s,i].filter(x=>x!==null).length; const planes=Number(Boolean(host))+Number(Boolean(pod));
+  const observedAt=[status.observedAt,...current.map(x=>x.observedAt)].filter(Boolean).sort().at(-1)||'';
+  return {node:status.node,observedAt,o:rounded(o),s:rounded(s),i:rounded(i),confidence:rounded(clamp(known/3*.75+planes/2*.25)),
+    diagnosis,evidence:{status,quality:samples}};
 }
 
-function Dashboard() {
-  const [maps, error] = K8s.ResourceClasses.ConfigMap.useList({namespace: 'kube-system'} as any);
-  const statuses = (maps || [])
-    .filter((item: any) => item.metadata?.labels?.['networking.re8ch.com/node-status'] === 'true')
-    .map(parseStatus).filter(Boolean).sort((a: FabricStatus, b: FabricStatus) => a.node.localeCompare(b.node)) as FabricStatus[];
-  const quality = (maps || [])
-    .filter((item: any) => item.metadata?.labels?.['app.kubernetes.io/component'] === 'network-quality')
-    .map(parseQuality).filter(Boolean).sort((a: QualitySnapshot, b: QualitySnapshot) =>
-      `${a.sourceNode}/${a.sourcePlane}`.localeCompare(`${b.sourceNode}/${b.sourcePlane}`)) as QualitySnapshot[];
-  const qualityRows = quality.map(item => {
-    const paths = item.paths || [];
-    const dns = item.dns || [];
-    return {source: `${item.sourceNode}/${item.sourcePlane}`, observed: item.observedAt ? new Date(item.observedAt).toLocaleString() : 'unknown',
-      pathSamples: paths.length, failedPaths: paths.filter(path => Number(path.lossRatio || 0) > 0).length,
-      pathP95: paths.length ? Math.max(...paths.map(path => Number(path.p95Ms || 0))) : 0,
-      dnsSamples: dns.length, failedDns: dns.filter(sample => Number(sample.failureRatio || 0) > 0).length,
-      dnsP95: dns.length ? Math.max(...dns.map(sample => Number(sample.p95Ms || 0))) : 0};
-  });
-  const staleQuality = quality.filter(item => !fresh(item)).length;
-  const intelligenceRows = statuses.map(status => buildIntelligence(status, quality));
-  const stale = statuses.filter(item => Date.now() - Date.parse(item.observedAt || '') > 90000).length;
-  const [selectedNode, setSelectedNode] = React.useState('');
-  const effectiveNode = statuses.some(item => item.node === selectedNode) ? selectedNode : statuses[0]?.node || '';
-  const selected = statuses.find(item => item.node === effectiveNode);
-  const columns = [
-    {header: 'Node', accessorKey: 'node'},
-    {header: 'Datapath', accessorFn: (item: FabricStatus) => <Chip size="small" color={item.datapath?.mode === 'native' ? 'success' : 'warning'} label={item.datapath?.mode || 'unknown'} />},
-    {header: 'Tunnel interface', accessorFn: (item: FabricStatus) => item.datapath?.tunnelInterfaces?.join(', ') || '—'},
-    {header: 'FRR', accessorFn: (item: FabricStatus) => <StatusLabel status={item.frr?.state === 'active' ? 'success' : 'error'}>{item.frr?.state || 'unknown'}</StatusLabel>},
-    {header: 'BGP established', accessorFn: (item: FabricStatus) => bgpPeers(item.frr?.bgp)},
-    {header: 'ECMP routes', accessorFn: (item: FabricStatus) => item.ecmpRoutes?.length || 0},
-    {header: 'Known peers', accessorFn: (item: FabricStatus) => item.peerRoutes?.length || 0},
-    {header: 'Observed', accessorFn: (item: FabricStatus) => item.observedAt ? new Date(item.observedAt).toLocaleString() : 'unknown'}
-  ];
-  const ecmpRows = (selected?.ecmpRoutes || []).map((route: any) => ({
-    destination: route.dst || 'default', protocol: route.protocol || '—', metric: route.metric ?? '—',
-    nextHops: (route.nexthops || []).map((hop: any) => `${hop.gateway || 'on-link'} · ${hop.dev || '?'} · weight ${hop.weight || 1}`)
-  }));
-  const decisionRows = Object.entries(selected?.pathRankings || {}).flatMap(([profile, paths]: any) =>
-    (paths || []).map((path: any, index: number) => ({profile, rank: index + 1, peer: path.peer,
-      pathType: path.pathType || '—', score: path.score, quota: path.quotaPressure?.tier || 'unknown',
-      price: path.priceStatus || 'unknown'})));
-  const peerRows = (selected?.peerRoutes || []).map((peer: any) => ({name: peer.name, role: peer.role || '—',
-    class: peer.class || '—', internalIP: peer.internalIP || '—', acceleratedIP: peer.acceleratedIP || '—', podCIDR: peer.podCIDR || '—'}));
-  const bgpRows = (selected?.bgpRib || []).flatMap((route: any) => (route.paths || []).map((path: any) => ({
-    prefix: route.prefix, peer: path.peer || '—', nextHops: path.nextHops || [], asPath: path.asPath || 'local',
-    best: Boolean(path.best), multipath: Boolean(path.multipath), reason: path.best ? 'best' : path.multipath ? 'multipath' : 'candidate only'
-  })));
-  return <Box sx={{p: 2}}>
-    <Typography variant="h4">Advanced Fabric</Typography>
-    <Typography color="text.secondary">Measurement → Evidence → Inference → Recommendation → Validation；control plane 与 dataplane 分开判定。</Typography>
-    {error && <Alert severity="error">无法读取状态 ConfigMap：{String(error)}</Alert>}
-    {stale > 0 && <Alert severity="warning">{stale} 个节点状态超过 90 秒未更新</Alert>}
-    <Alert severity="info">Freshness 只代表证据可用，不代表稳定；候选 peer 数量也不代表故障域独立。切路前必须 shadow probe，切路后必须重新测量。</Alert>
-    {staleQuality > 0 && <Alert severity="warning">{staleQuality} 个网络/DNS 测量源超过 120 秒未更新</Alert>}
-    <SectionBox title="Network intelligence: O / S / I and rule-based diagnosis">
-      <Table data={intelligenceRows} columns={[
-        {header: 'Node', accessorKey: 'node'}, {header: 'O · Optimality', accessorKey: 'optimality'},
-        {header: 'S · Stability', accessorKey: 'stability'}, {header: 'I · Independence', accessorKey: 'independence'},
-        {header: 'Diagnosis', accessorFn: (row: IntelligenceRow) => <Alert icon={false} severity={row.severity}>{row.diagnosis}</Alert>},
-        {header: 'Confidence', accessorKey: 'confidence'}, {header: 'Recommendation', accessorKey: 'recommendation'},
-        {header: 'Validation', accessorKey: 'validation'}
-      ] as any}/>
-    </SectionBox>
-    <SectionBox title={`Raw measurement continuity (${quality.length} sources)`}>
-      <Table data={qualityRows} columns={[
-        {header: 'Source', accessorKey: 'source'}, {header: 'Observed', accessorKey: 'observed'},
-        {header: 'Path samples', accessorKey: 'pathSamples'}, {header: 'Paths with loss', accessorKey: 'failedPaths'},
-        {header: 'Worst path p95 ms', accessorKey: 'pathP95'}, {header: 'DNS samples', accessorKey: 'dnsSamples'},
-        {header: 'DNS failures', accessorKey: 'failedDns'}, {header: 'Worst DNS p95 ms', accessorKey: 'dnsP95'}
-      ] as any}/>
-    </SectionBox>
-    <SectionBox title={`Node network status (${statuses.length})`}><Table data={statuses} columns={columns as any}/></SectionBox>
-    <Stack direction={{xs: 'column', md: 'row'}} spacing={2} sx={{my: 2}} alignItems="center">
-      <FormControl size="small" sx={{minWidth: 280}}>
-        <InputLabel id="af-node-label">Inspect node</InputLabel>
-        <Select labelId="af-node-label" label="Inspect node" value={effectiveNode} onChange={event => setSelectedNode(event.target.value)}>
-          {statuses.map(item => <MenuItem key={item.node} value={item.node}>{item.node}</MenuItem>)}
-        </Select>
-      </FormControl>
-      {selected && <Stack direction="row" spacing={1} flexWrap="wrap">
-        <Chip label={`Kernel ECMP sets ${ecmpRows.length}`} color={ecmpRows.length ? 'success' : 'default'}/>
-        <Chip label={`BGP candidate paths ${bgpRows.length}`} color={bgpRows.length ? 'info' : 'default'}/>
-        <Chip label={`Candidate decisions ${decisionRows.length}`} color={decisionRows.length ? 'primary' : 'default'}/>
-        <Chip label={`Known peers ${peerRows.length}`}/>
-      </Stack>}
-    </Stack>
-    <SectionBox title={`${effectiveNode || 'Node'}: kernel ECMP routes`}>
-      <Table data={ecmpRows} columns={[
-        {header: 'Destination', accessorKey: 'destination'}, {header: 'Protocol', accessorKey: 'protocol'},
-        {header: 'Metric', accessorKey: 'metric'},
-        {header: 'Next hops / weight', accessorFn: (row: any) => <Stack direction="row" gap={0.5} flexWrap="wrap">{row.nextHops.map((hop: string) => <Chip key={hop} size="small" label={hop}/>)}</Stack>}
-      ] as any}/>
-    </SectionBox>
-    <SectionBox title={`${effectiveNode || 'Node'}: path decisions`}>
-      <Table data={decisionRows} columns={[
-        {header: 'Profile', accessorKey: 'profile'}, {header: 'Rank', accessorKey: 'rank'},
-        {header: 'Peer', accessorKey: 'peer'}, {header: 'Path type', accessorKey: 'pathType'},
-        {header: 'Score', accessorKey: 'score'}, {header: 'Quota', accessorKey: 'quota'}, {header: 'Price', accessorKey: 'price'}
-      ] as any}/>
-    </SectionBox>
-    <SectionBox title={`${effectiveNode || 'Node'}: BGP candidate / selected paths`}>
-      <Table data={bgpRows} columns={[
-        {header: 'Prefix', accessorKey: 'prefix'}, {header: 'Peer', accessorKey: 'peer'},
-        {header: 'Next hops', accessorFn: (row: any) => <Stack direction="row" gap={0.5} flexWrap="wrap">{row.nextHops.map((hop: string) => <Chip key={hop} size="small" label={hop}/>)}</Stack>},
-        {header: 'AS path', accessorKey: 'asPath'},
-        {header: 'Selection', accessorFn: (row: any) => <Chip size="small" color={row.best ? 'success' : row.multipath ? 'primary' : 'default'} label={row.reason}/>}
-      ] as any}/>
-    </SectionBox>
-    <SectionBox title={`${effectiveNode || 'Node'}: peer inventory`}>
-      <Table data={peerRows} columns={[
-        {header: 'Peer', accessorKey: 'name'}, {header: 'Class', accessorKey: 'class'}, {header: 'Role', accessorKey: 'role'},
-        {header: 'Internal IP', accessorKey: 'internalIP'}, {header: 'Accelerated IP', accessorKey: 'acceleratedIP'}, {header: 'PodCIDR', accessorKey: 'podCIDR'}
-      ] as any}/>
-    </SectionBox>
-  </Box>;
-}
+function readHistory():Record<string,OsiSnapshot[]>{try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'{}');}catch{return{};}}
+function persist(rows:Array<Omit<Row,'history'>>){const stored=readHistory();for(const row of rows){if(!row.observedAt)continue;
+  const values=stored[row.node]||[];if(!values.some(x=>x.observedAt===row.observedAt)){values.push({observedAt:row.observedAt,o:row.o,s:row.s,i:row.i});
+    values.sort((a,b)=>Date.parse(a.observedAt)-Date.parse(b.observedAt));stored[row.node]=values.slice(-HISTORY_LIMIT);}}
+  try{localStorage.setItem(HISTORY_KEY,JSON.stringify(stored));}catch{/* optional */}return stored;}
 
-registerSidebarEntry({name: 'advanced-fabric', url: '/advanced-fabric', icon: 'mdi:router-network', parent: '', label: 'Advanced Fabric'});
-registerRoute({path: '/advanced-fabric', sidebar: 'advanced-fabric', name: 'Advanced Fabric', component: () => <Dashboard/>});
-registerSidebarEntry({name: 'penrose-triangle', url: '/penrose-triangle', icon: 'mdi:triangle-outline', parent: '', label: 'Penrose Triangle'});
-registerRoute({path: '/penrose-triangle', sidebar: 'penrose-triangle', name: 'Penrose Triangle Observer', component: () => <PenroseObserver/>});
+const axes={o:{x:54,y:8},s:{x:9,y:87},i:{x:99,y:87}}; const center={x:54,y:61};
+function point(axis:keyof typeof axes,value:number){return{x:center.x+(axes[axis].x-center.x)*value,y:center.y+(axes[axis].y-center.y)*value};}
+function timeColor(index:number,total:number){const t=total<=1?1:index/(total-1);return{stroke:`hsl(${215-35*t} 78% ${72-27*t}%)`,opacity:.12+.83*t,width:.8+1.8*t};}
+function Triangle({row,onClick}:{row:Row;onClick:()=>void}){const history=row.history.slice(-18);return <Box component="button" onClick={onClick}
+  aria-label={`Inspect ${row.node} O S I evidence`} sx={{border:0,background:'transparent',p:0,cursor:'pointer',display:'flex',alignItems:'center',gap:1,color:'inherit'}}>
+  <svg width="112" height="98" viewBox="0 0 108 96" role="img"><polygon points="54,8 9,87 99,87" fill="none" stroke="currentColor" strokeOpacity=".18"/>
+  {Object.values(axes).map((p,index)=><line key={index} x1="54" y1="61" x2={p.x} y2={p.y} stroke="currentColor" strokeOpacity=".12"/>)}
+  {history.map((snapshot,index)=>{if([snapshot.o,snapshot.s,snapshot.i].some(x=>x===null))return null;const c=timeColor(index,history.length);
+    const points=([['o',snapshot.o],['s',snapshot.s],['i',snapshot.i]] as const).map(([a,v])=>{const p=point(a,v as number);return`${p.x},${p.y}`;}).join(' ');
+    return <polygon key={snapshot.observedAt} points={points} fill="none" stroke={c.stroke} strokeOpacity={c.opacity} strokeWidth={c.width}/>;})}
+  {(['o','s','i'] as const).map(a=>row[a]===null?null:(()=>{const p=point(a,row[a] as number);return<circle key={a} cx={p.x} cy={p.y} r="2.8" fill="#1565c0"/>;})())}
+  <text x="54" y="7" textAnchor="middle" fontSize="9" fill="currentColor">O</text><text x="5" y="94" fontSize="9" fill="currentColor">S</text>
+  <text x="103" y="94" textAnchor="end" fontSize="9" fill="currentColor">I</text></svg><Typography variant="body2" sx={{fontWeight:600}}>{row.node}</Typography></Box>;}
+const value=(v:Score)=>v===null?'—':v.toFixed(3);
+function delta(history:OsiSnapshot[],key:'o'|'s'|'i'){if(history.length<2)return'—';const a=history.at(-1)?.[key]; const b=history.at(-2)?.[key];
+  if(a===null||a===undefined||b===null||b===undefined)return'—';const d=a-b;return`${d>=0?'+':''}${d.toFixed(3)}`;}
+function parse(item:any,key:string){try{return JSON.parse(item.jsonData?.data?.[key]||item.data?.[key]);}catch{return null;}}
+
+function Dashboard(){const[maps,error]=K8s.ResourceClasses.ConfigMap.useList({namespace:'kube-system'} as any);
+  const statuses=(maps||[]).filter((x:any)=>x.metadata?.labels?.['networking.re8ch.com/node-status']==='true').map((x:any)=>parse(x,'status.json')).filter(Boolean)
+    .sort((a:FabricStatus,b:FabricStatus)=>a.node.localeCompare(b.node)) as FabricStatus[];
+  const quality=(maps||[]).filter((x:any)=>x.metadata?.labels?.['app.kubernetes.io/component']==='network-quality').map((x:any)=>parse(x,'result.json')).filter(Boolean) as QualitySnapshot[];
+  const clusterHistory=(maps||[]).filter((x:any)=>x.metadata?.name==='advanced-fabric-osi-history')
+    .map((x:any)=>parse(x,'history.json')).find(Boolean)?.nodes as Record<string,OsiSnapshot[]>|undefined;
+  const computed=statuses.map(x=>score(x,quality)); const signature=computed.map(x=>`${x.node}:${x.observedAt}:${x.o}:${x.s}:${x.i}`).join('|');
+  const[history,setHistory]=React.useState<Record<string,OsiSnapshot[]>>({});React.useEffect(()=>setHistory(persist(computed)),[signature]);
+  const rows=computed.map(x=>({...x,history:clusterHistory?.[x.node]||history[x.node]||[{observedAt:x.observedAt,o:x.o,s:x.s,i:x.i}]}));const[selected,setSelected]=React.useState<Row|null>(null);
+  const unknown=rows.filter(x=>[x.o,x.s,x.i].some(v=>v===null)).length;
+  return <Box sx={{p:2}}><Typography variant="h4">Advanced Fabric</Typography><Typography color="text.secondary" sx={{mb:2}}>O/S/I network-state geometry · continuous time color · missing evidence stays unknown.</Typography>
+  {error&&<Alert severity="error">Unable to read evidence: {String(error)}</Alert>}{unknown>0&&<Alert severity="info" sx={{mb:2}}>{unknown} nodes have unknown dimensions; they are intentionally not rendered as zero.</Alert>}
+  <SectionBox title="Per-node O / S / I evolution"><Table data={rows} columns={[
+    {header:'Node',accessorFn:(r:Row)=><Triangle row={r} onClick={()=>setSelected(r)}/>},{header:'O',accessorFn:(r:Row)=>value(r.o)},
+    {header:'S',accessorFn:(r:Row)=>value(r.s)},{header:'I',accessorFn:(r:Row)=>value(r.i)},{header:'ΔO',accessorFn:(r:Row)=>delta(r.history,'o')},
+    {header:'ΔS',accessorFn:(r:Row)=>delta(r.history,'s')},{header:'ΔI',accessorFn:(r:Row)=>delta(r.history,'i')},
+    {header:'Confidence',accessorFn:(r:Row)=>value(r.confidence)},{header:'Observed',accessorFn:(r:Row)=>r.observedAt?new Date(r.observedAt).toLocaleString():'—'}] as any}/></SectionBox>
+  <Stack direction="row" spacing={1} alignItems="center" sx={{mt:1}}><Typography variant="caption">Older</Typography>{[0,1,2,3,4,5].map((_,i,a)=>{const c=timeColor(i,a.length);return<Box key={i} sx={{width:24,height:4,bgcolor:c.stroke,opacity:c.opacity}}/>;})}<Typography variant="caption">Newest</Typography></Stack>
+  <Dialog open={Boolean(selected)} onClose={()=>setSelected(null)} maxWidth="lg" fullWidth>{selected&&<><DialogTitle>{selected.node} · evidence and inference</DialogTitle><DialogContent>
+    <Stack direction="row" spacing={1} sx={{mb:2}}><Chip label={`O ${value(selected.o)}`}/><Chip label={`S ${value(selected.s)}`}/><Chip label={`I ${value(selected.i)}`}/><Chip label={`Confidence ${value(selected.confidence)}`} color="primary"/></Stack>
+    <Typography variant="subtitle2">Rule-based diagnosis</Typography><Typography sx={{mb:2}}>{selected.diagnosis}</Typography><Divider sx={{mb:2}}/>
+    <Typography variant="subtitle2">Timestamped O/S/I snapshots</Typography><Box component="pre" sx={{overflow:'auto',fontSize:12}}>{JSON.stringify(selected.history,null,2)}</Box>
+    <Typography variant="subtitle2">Raw evidence</Typography><Box component="pre" sx={{overflow:'auto',fontSize:12,maxHeight:420}}>{JSON.stringify(selected.evidence,null,2)}</Box>
+  </DialogContent></>}</Dialog></Box>;}
+
+registerSidebarEntry({name:'advanced-fabric',url:'/advanced-fabric',icon:'mdi:router-network',parent:'',label:'Advanced Fabric'});
+registerRoute({path:'/advanced-fabric',sidebar:'advanced-fabric',name:'Advanced Fabric',component:()=><Dashboard/>});
+registerSidebarEntry({name:'penrose-triangle',url:'/penrose-triangle',icon:'mdi:triangle-outline',parent:'',label:'Penrose Triangle'});
+registerRoute({path:'/penrose-triangle',sidebar:'penrose-triangle',name:'Penrose Triangle Observer',component:()=><PenroseObserver/>});
