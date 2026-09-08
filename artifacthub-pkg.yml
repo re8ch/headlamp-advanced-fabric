@@ -8,6 +8,6 @@ homeURL: https://github.com/re8ch/headlamp-advanced-fabric
 containersImages: []
 annotations:
   headlamp/plugin/archive-url: https://github.com/re8ch/headlamp-advanced-fabric/releases/download/v0.16.0/re8ch-headlamp-advanced-fabric-0.16.0.tar.gz
-  headlamp/plugin/archive-checksum: SHA256:ed284c98ce58e51471f66945a28515aa9752014d32fb34cf2e48ff25397f98bf
+  headlamp/plugin/archive-checksum: SHA256:f9dc0863fbcadf898a2e5409eb931fd48fd6988b335b5a27e3905c6a37e19556
   headlamp/plugin/version-compat: ">=0.42.0"
   headlamp/plugin/distro-compat: in-cluster,web,docker-desktop,desktop
