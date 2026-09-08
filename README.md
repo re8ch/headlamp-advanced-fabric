@@ -26,6 +26,12 @@ The plugin expects `networking.re8ch.com/node-status=true` and
 `app.kubernetes.io/component=network-quality` ConfigMaps in `kube-system`,
 produced by the Advanced Fabric Helm chart.
 
+The primary overview normalizes optimality, stability, and failure independence
+to 0–1 without coercing missing evidence to zero. Each node renders a bounded,
+timestamped SVG O/S/I history: geometry is network state and a continuous time
+color scale makes drift, collapse, recovery, and trade-offs visible. Clicking a
+triangle opens its raw host/pod evidence and rule-based diagnosis.
+
 ## Penrose Triangle Observer
 
 The `Penrose Triangle` sidebar page is a read-only scheduling observability
