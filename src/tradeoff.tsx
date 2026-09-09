@@ -36,8 +36,10 @@ type MeasurementEnvelope = {
 export function liveObservationState(envelope: MeasurementEnvelope | undefined, fallback: any) {
   if (!envelope?.measurements?.length) return fallback || {};
   const records = new Map(envelope.measurements.map(item => [item.symbol, item]));
-  const missingSymbols = [...new Set(Object.values(STRUCTURE_SYMBOLS).flat())]
-    .filter(symbol => records.get(symbol)?.state !== 'observed');
+  const missingSymbols = [...new Set(envelope.measurements
+    .filter(item => item.state !== 'observed')
+    .map(item => item.symbol)
+    .filter((symbol): symbol is string => Boolean(symbol)))];
   const observed = envelope.measurements.filter(item => item.state === 'observed').length;
   const required = 31;
   const latent = Object.fromEntries(Object.entries(STRUCTURE_SYMBOLS).map(([name, symbols]) => {
