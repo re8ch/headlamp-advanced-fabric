@@ -1,6 +1,6 @@
 {
   "name": "@re8ch/headlamp-advanced-fabric",
-  "version": "0.20.1",
+  "version": "0.20.2",
   "description": "Headlamp Trade-off Observatory for Advanced Fabric and Penrose scheduling observability",
   "scripts": {
     "build": "headlamp-plugin build",
