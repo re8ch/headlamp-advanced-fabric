@@ -27,6 +27,38 @@ type Point = { time: number; value: number };
 type Series = { symbol: string; unit: string; points: Point[] };
 const EMPTY_HISTORY: any[] = [];
 
+type MeasurementEnvelope = {
+  node: string;
+  envelopeComplete?: boolean;
+  measurements?: Array<{ symbol?: string; state?: string; observationStatus?: string }>;
+};
+
+export function liveObservationState(envelope: MeasurementEnvelope | undefined, fallback: any) {
+  if (!envelope?.measurements?.length) return fallback || {};
+  const records = new Map(envelope.measurements.map(item => [item.symbol, item]));
+  const missingSymbols = [...new Set(Object.values(STRUCTURE_SYMBOLS).flat())]
+    .filter(symbol => records.get(symbol)?.state !== 'observed');
+  const observed = envelope.measurements.filter(item => item.state === 'observed').length;
+  const required = 31;
+  const latent = Object.fromEntries(Object.entries(STRUCTURE_SYMBOLS).map(([name, symbols]) => {
+    const availableSymbols = symbols.filter(symbol => records.get(symbol)?.state === 'observed');
+    const missing = symbols.filter(symbol => !availableSymbols.includes(symbol));
+    return [name, {
+      state: missing.length ? (availableSymbols.length ? 'Partial' : 'NotObserved') : 'Observed',
+      requiredSymbols: symbols,
+      availableSymbols,
+      missingSymbols: missing,
+      reason: 'observation-derived component vector; no scalar mapping',
+    }];
+  }));
+  return {
+    ...(fallback || {}),
+    latent,
+    trackingReady: envelope.envelopeComplete === true && observed === required && missingSymbols.length === 0,
+    trackingGate: { required, observed, missingSymbols },
+  };
+}
+
 function historiesToSeries(history: any[]): Series[] {
   const output = new Map<string, Series>();
   for (const point of history || []) {
@@ -82,12 +114,12 @@ function StructurePanel({ name, series, eventTime }: { name: string; series: Ser
   return <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 2 }}><Typography variant="h6">{name} · {STRUCTURAL_QUANTITIES[name]}</Typography><Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(240px, 1fr))' }, gap: 1.5, mt: 1.5 }}>{(STRUCTURE_SYMBOLS[name] || []).map(symbol => { const item = bySymbol.get(symbol); return <Box key={symbol} sx={{ bgcolor: 'background.default', borderRadius: 1, p: 1 }}><Stack direction="row" justifyContent="space-between"><Typography fontWeight={700}>{symbol}</Typography><Typography variant="caption" color="text.secondary">{item?.unit || 'raw unit'}</Typography></Stack><Sparkline series={item} eventTime={eventTime} /></Box>; })}</Box></Box>;
 }
 
-export default function TradeoffObservatory({ maps }: { maps: any[] }) {
+export default function TradeoffObservatory({ maps, measurements }: { maps: any[]; measurements: MeasurementEnvelope[] }) {
   const [triangles, triangleError] = (TradeoffTriangle as any).useList({ refetchInterval: 15000 });
   const [episodes, episodeError] = (NetworkObservationEpisode as any).useList({ refetchInterval: 15000 });
   const structural = (maps || []).map(item => parse(item, 'observations.json')).find(Boolean)?.nodes || {};
-  const nodes = Object.keys(structural).sort(); const [selectedNode, setSelectedNode] = React.useState('');
-  const node = nodes.includes(selectedNode) ? selectedNode : nodes[0] || ''; const nodeData = structural[node] || {};
+  const nodes = [...new Set([...Object.keys(structural), ...(measurements || []).map(item => item.node)])].sort(); const [selectedNode, setSelectedNode] = React.useState('');
+  const node = nodes.includes(selectedNode) ? selectedNode : nodes[0] || ''; const envelope = (measurements || []).find(item => item.node === node); const nodeData = liveObservationState(envelope, structural[node]);
   const [rangeSeconds, setRangeSeconds] = React.useState(86400); const { series, error } = useObservableSeries(node, rangeSeconds, nodeData.history || EMPTY_HISTORY);
   const triangleItems = (triangles || []).map(raw); const [selectedTriangle, setSelectedTriangle] = React.useState('');
   const triangleName = triangleItems.some((item: any) => item.metadata?.name === selectedTriangle) ? selectedTriangle : triangleItems[0]?.metadata?.name || '';
