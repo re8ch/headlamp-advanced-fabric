@@ -1,8 +1,9 @@
 # Headlamp Advanced Fabric
 
-The Advanced Fabric landing page consumes the controller's formal, timestamped
-O/S/I states; it never derives scores in the browser. Missing evidence remains
-unknown, and per-dimension confidence is displayed separately from each value.
+The Advanced Fabric landing page is a Trade-off Observatory. It consumes raw
+measurements, Q/K/H/C/R/D structural evidence, discovered interventions and
+identification-gated finite differences. It never derives O/S/I scores in the
+browser, and missing evidence remains unknown.
 
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/headlamp-advanced-fabric)](https://artifacthub.io/packages/search?repo=headlamp-advanced-fabric)
 
@@ -27,13 +28,12 @@ produced by the Advanced Fabric Helm chart. The selected node exposes the full
 and explicit missing-evidence qualification so deployment can be accepted from
 the UI without treating an absent O/S/I score as absent raw data.
 
-The primary overview selects one Service or Node assessment and renders one
-large O/S/I card rather than a table of miniature triangles. Optimality,
-stability, and failure independence remain mathematically independent `[0,1]`
-axes; missing axes are omitted, not plotted as zero. Service cards also show the
-measured inflow counters, rates, window, sample count, confidence, and formula
-operands published by the controller. Existing measurement, node, ECMP, BGP,
-decision and peer tables remain available below the selected assessment.
+The primary overview selects a research subject and one configurable large
+triangle. It remains open until all three structural vertices and all three
+trade-off edges are identified from compatible before/control/after windows.
+Edges show tau, confidence interval, sample count and identification state. The
+intervention timeline and existing measurement, node, ECMP, BGP, decision and
+peer tables remain available below the selected triangle.
 
 ## Penrose Triangle Observer
 
