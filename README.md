@@ -19,9 +19,13 @@ npm run build
 npm run package
 ```
 
-The plugin expects `networking.re8ch.com/node-status=true` and
-`app.kubernetes.io/component=network-quality` ConfigMaps in `kube-system`,
-produced by the Advanced Fabric Helm chart.
+The plugin expects `networking.re8ch.com/node-status=true`,
+`app.kubernetes.io/component=network-quality`, and
+`app.kubernetes.io/component=node-measurement` ConfigMaps in `kube-system`,
+produced by the Advanced Fabric Helm chart. The selected node exposes the full
+31-symbol measurement envelope, evidence state, value, source, observation time,
+and explicit missing-evidence qualification so deployment can be accepted from
+the UI without treating an absent O/S/I score as absent raw data.
 
 The primary overview selects one Service or Node assessment and renders one
 large O/S/I card rather than a table of miniature triangles. Optimality,
