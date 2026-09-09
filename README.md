@@ -28,7 +28,12 @@ produced by the Advanced Fabric Helm chart. The selected node exposes the full
 and explicit missing-evidence qualification so deployment can be accepted from
 the UI without treating an absent O/S/I score as absent raw data.
 
-Tracking is enabled independently per node only after all 31 symbols are valid.
+Tracking is enabled independently per node only after all 31 observation
+channels are valid. Event-conditioned durations are valid right-censored
+observations when no completed natural episode exists in the retained window:
+they carry no numeric value and do not block the model. Only a broken, stale or
+incomplete evidence channel blocks the gate. An attempted but unreachable
+next-hop is a measured outcome with value zero, not missing evidence.
 Each Q/K/H/C/R/D panel keeps its individual indicators and original units on a
 synchronized time range sourced from VictoriaMetrics. The relationship view
 places selected structures on the same time range and natural-episode cursor;
