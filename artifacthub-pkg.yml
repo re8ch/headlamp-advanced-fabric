@@ -1,13 +1,13 @@
-version: 0.16.0
+version: 0.17.0
 name: advanced-fabric
 displayName: Advanced Fabric
-createdAt: "2026-09-08T18:56:12Z"
-description: Inspect concrete Service inflow measurements and select one large O/S/I assessment card alongside Advanced Fabric datapath evidence.
+createdAt: "2026-09-09T03:53:00Z"
+description: Inspect concrete Service inflow, one large O/S/I assessment card, and complete per-node 31-symbol measurement evidence.
 license: Apache-2.0
 homeURL: https://github.com/re8ch/headlamp-advanced-fabric
 containersImages: []
 annotations:
-  headlamp/plugin/archive-url: https://github.com/re8ch/headlamp-advanced-fabric/releases/download/v0.16.0/re8ch-headlamp-advanced-fabric-0.16.0.tar.gz
-  headlamp/plugin/archive-checksum: SHA256:f9dc0863fbcadf898a2e5409eb931fd48fd6988b335b5a27e3905c6a37e19556
+  headlamp/plugin/archive-url: https://github.com/re8ch/headlamp-advanced-fabric/releases/download/v0.17.0/re8ch-headlamp-advanced-fabric-0.17.0.tar.gz
+  headlamp/plugin/archive-checksum: SHA256:070127d6c2672ff44501ded7de0c234c7d072aa3b9590174401e515aa7a06852
   headlamp/plugin/version-compat: ">=0.42.0"
   headlamp/plugin/distro-compat: in-cluster,web,docker-desktop,desktop
