@@ -19,9 +19,9 @@ export const STRUCTURAL_QUANTITIES: Record<string, string> = {
 const STRUCTURE_SYMBOLS: Record<string, string[]> = {
   Q: ['a_reach', 'l_path', 't_rtt', 'b_rx'], K: ['t_state', 't_conv', 't_recover', 'delta_ribfib'],
   H: ['p_route', 'x_nh', 't_persist', 'f_switch', 'a_osc'],
-  C: ['u_bgp', 'w_bgp', 'lambda_flap', 'delta_ribfib', 'n_path_change'],
-  R: ['w_ecmp', 'm_route', 'n_peer', 'n_nh', 'n_if', 'n_alt'],
-  D: ['n_tun', 'n_gw', 'n_asn', 'g_dep', 'n_alt'],
+  C: ['u_bgp', 'w_bgp', 'n_adv', 'n_recv', 'lambda_flap', 'delta_ribfib', 'n_path_change'],
+  R: ['b_est', 'w_ecmp', 'm_route', 'n_peer', 'n_nh', 'n_if', 'n_alt'],
+  D: ['d_mode', 'n_tun', 'n_gw', 'n_asn', 'g_dep', 'n_alt'],
 };
 type Point = { time: number; value: number };
 type Series = { symbol: string; dimension?: string; unit: string; points: Point[] };
