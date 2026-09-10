@@ -12,7 +12,7 @@ type NodeMeasurement={node:string;observedAt?:string;generatedAt?:string;envelop
 
 const SYMBOL_MEANINGS:Record<string,string>={
   x_nh:'selected next-hop identity',p_route:'route-selection preference attributes',w_ecmp:'installed ECMP width',m_route:'candidate-route multiplicity',n_path_change:'selected path-set transitions',d_mode:'Cilium forwarding mode',
-  a_reach:'end-to-end reachability trials',l_path:'packet or connection loss ratio',t_rtt:'round-trip latency distribution',b_rx:'Service traffic received by node',b_est:'established BGP sessions',n_peer:'configured and established peers',
+  a_reach:'end-to-end reachability trials',l_path:'packet or connection loss ratio',t_rtt:'round-trip latency distribution',b_rx:'completed node-local Hubble/Gateway ingress window; available dimensions retain original units and zero is valid only after full window coverage',b_est:'established BGP sessions',n_peer:'configured and established peers',
   n_adv:'prefixes advertised to peers',n_recv:'prefixes received from peers',u_bgp:'BGP update events',w_bgp:'BGP withdrawal events',t_conv:'disturbance-to-stability time',lambda_flap:'route or peer flap intensity',
   delta_ribfib:'RIB/FIB state-set changes',n_nh:'candidate next-hop count',n_if:'distinct egress interfaces',n_tun:'distinct tunnel underlays',n_gw:'distinct gateways',n_asn:'observed upstream ASN dependency sets',
   g_dep:'shared routing/failure dependency graph',n_alt:'simultaneously viable alternatives',t_state:'state-transition timestamp',t_persist:'state persistence duration',f_switch:'path-switching frequency',t_recover:'impairment-to-recovery time',a_osc:'response oscillation amplitude',
