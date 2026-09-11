@@ -1,58 +1,29 @@
 # Headlamp Advanced Fabric
 
-The Advanced Fabric landing page is an observation-only Tracking Observatory.
-It consumes raw measurements, Q/K/H/C/R/D structural evidence and naturally
-occurring network episodes. It never derives a combined score in the browser,
-and missing evidence remains unknown.
+Headlamp Advanced Fabric is a read-only UI client for the public Advanced Fabric
+observation API. It discovers the API from
+`AdvancedFabric.status.observationAPI` and accesses the advertised Kubernetes
+Service through the Kubernetes Service Proxy.
 
-[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/headlamp-advanced-fabric)](https://artifacthub.io/packages/search?repo=headlamp-advanced-fabric)
+The plugin does not scan implementation ConfigMaps, query a metrics database,
+derive structural coordinates, or provide fixed/demo/fallback observations.
+Missing producer data remains unavailable in the UI. Relationship polygons are
+drawn only when the producer supplies all three synchronized coordinates.
 
-Standard Headlamp plugin for inspecting Advanced Fabric node datapath mode,
-FRR/BGP/BFD health, kernel ECMP routes, per-node path decisions and the
-NWQ-1/DNSQ-1 network and DNS measurement surface.
+## Requirements
+
+- `networking.advfab.org/v1alpha1` `AdvancedFabric` CRD;
+- observation API `v1` with the advertised `subjects`, `snapshots`,
+  `relationships`, `relationship-series`, and `episodes` capabilities; and
+- RBAC for `get/list/watch` on `AdvancedFabric` plus `get` on the advertised
+  Service proxy.
 
 ## Build
 
 ```sh
 npm ci
 npm run tsc
+npm run lint
 npm run build
 npm run package
 ```
-
-The plugin expects `networking.re8ch.com/node-status=true`,
-`app.kubernetes.io/component=network-quality`, and
-`app.kubernetes.io/component=node-measurement` ConfigMaps in `kube-system`,
-produced by the Advanced Fabric Helm chart. The selected node exposes the full
-31-symbol measurement envelope, evidence state, value, source, observation time,
-and explicit missing-evidence qualification so deployment can be accepted from
-the UI without treating an absent O/S/I score as absent raw data.
-
-Tracking is enabled independently per node only after all 31 observation
-channels are valid. Event-conditioned durations are valid right-censored
-observations when no completed natural episode exists in the retained window:
-they carry no numeric value and do not block the model. Only a broken, stale or
-incomplete evidence channel blocks the gate. An attempted but unreachable
-next-hop is a measured outcome with value zero, not missing evidence.
-Each Q/K/H/C/R/D panel keeps its individual indicators and original units on a
-synchronized time range sourced from VictoriaMetrics. The relationship view
-places selected structures on the same time range and natural-episode cursor;
-it does not calculate an aggregate or directional conclusion. Existing
-measurement, node, ECMP, BGP, decision and peer tables remain available.
-
-## Penrose Triangle Observer
-
-The `Penrose Triangle` sidebar page is a read-only scheduling observability
-surface. It shows NodeProfile or projected node labels, allocatable capacity,
-installed kube-scheduler profiles and plugins, observed scheduler assignments,
-and WorkloadTriangle Desired/Actual state. If the scheduling CRDs are not yet
-installed, the Kubernetes Node, Pod and scheduler ConfigMap views remain
-available.
-
-Kubernetes does not persist every scheduler scoring candidate. The first
-version therefore distinguishes declared policy and final Pod binding from a
-future simulator/observer evidence feed instead of presenting inferred scores
-as scheduler decisions.
-
-The service-outcome model, disturbance trajectory and Pareto contract are
-documented in [`docs/PENROSE_OBSERVER.md`](docs/PENROSE_OBSERVER.md).
