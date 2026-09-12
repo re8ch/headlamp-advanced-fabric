@@ -12,7 +12,7 @@ import {
   useTheme,
 } from '@mui/material';
 import React from 'react';
-import { completeSamples, TriangleSample as Sample } from './contract';
+import { completeSamples, relationshipSeriesPath, TriangleSample as Sample } from './contract';
 
 export type ObservationClient = (path: string) => Promise<any>;
 type Subject = { kind: string; name: string; observedAt?: string; state: string };
@@ -190,13 +190,9 @@ export default function TradeoffObservatory({
     ? selectedRelationship
     : relationships[0]?.id || '';
   const relationship = relationships.find(item => item.id === relationshipId);
-  const end = Math.floor(Date.now() / 1000);
-  const start = end - 86400;
   const seriesPath =
     relationshipId && subject
-      ? `/api/v1/relationships/${encodeURIComponent(
-          relationshipId
-        )}/series?subject=${encodeURIComponent(subject)}&start=${start}&end=${end}&maxPoints=7`
+      ? relationshipSeriesPath(relationshipId, subject)
       : '/api/v1/relationships';
   const seriesState = useRequest(client, seriesPath);
   const snapshotState = useRequest(

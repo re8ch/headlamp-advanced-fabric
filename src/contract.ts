@@ -16,3 +16,9 @@ export function completeSamples(vertices: string[], samples: TriangleSample[]) {
     vertices.every(vertex => typeof sample.coordinates[vertex] === 'number')
   );
 }
+
+export function relationshipSeriesPath(relationshipId: string, subject: string) {
+  return `/api/v1/relationships/${encodeURIComponent(
+    relationshipId
+  )}/series?subject=${encodeURIComponent(subject)}&maxPoints=7`;
+}

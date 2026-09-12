@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completeSamples, serviceProxyBase } from './contract';
+import { completeSamples, relationshipSeriesPath, serviceProxyBase } from './contract';
 
 describe('public observation contract', () => {
   it('discovers the API only through the advertised service reference', () => {
@@ -15,5 +15,11 @@ describe('public observation contract', () => {
     ];
     expect(completeSamples(['R', 'D', 'C'], samples)).toEqual([samples[0]]);
     expect(samples[1].coordinates.D).toBeNull();
+  });
+
+  it('uses a stable producer-managed series window', () => {
+    expect(relationshipSeriesPath('redundancy-independence-churn', 'r640')).toBe(
+      '/api/v1/relationships/redundancy-independence-churn/series?subject=r640&maxPoints=7'
+    );
   });
 });
