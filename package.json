@@ -16,9 +16,7 @@
     "bgp",
     "ecmp",
     "networking",
-    "scheduler",
-    "dra",
-    "penrose"
+    "advanced-fabrics"
   ],
   "prettier": "@headlamp-k8s/eslint-config/prettier-config",
   "eslintConfig": {
