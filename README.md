@@ -1,6 +1,6 @@
-# Headlamp Advanced Fabric
+# Headlamp Advanced Fabrics
 
-Headlamp Advanced Fabric is a read-only UI client for the public Advanced Fabric
+Headlamp Advanced Fabrics is a read-only UI client for the public Advanced Fabrics
 observation API. It discovers the API from
 `AdvancedFabric.status.observationAPI` and accesses the advertised Kubernetes
 Service through the Kubernetes Service Proxy.
