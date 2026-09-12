@@ -1,20 +1,40 @@
-import { ApiProxy, K8s, registerRoute, registerSidebarEntry } from '@kinvolk/headlamp-plugin/lib';
+import { ApiProxy, registerRoute, registerSidebarEntry } from '@kinvolk/headlamp-plugin/lib';
 import { Alert, Box, CircularProgress, Typography } from '@mui/material';
 import React from 'react';
 import { serviceProxyBase } from './contract';
 import TradeoffObservatory, { ObservationClient } from './tradeoff';
 
-const AdvancedFabric = K8s.crd.makeCustomResourceClass({
-  apiInfo: [{ group: 'networking.advfab.org', version: 'v1alpha1' }],
-  kind: 'AdvancedFabric',
-  pluralName: 'advancedfabrics',
-  singularName: 'advancedfabric',
-  isNamespaced: false,
-});
+function useAdvancedFabrics() {
+  const [state, setState] = React.useState<{ items?: any[]; error?: string }>({});
+  React.useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const response: any = await ApiProxy.request(
+          '/apis/networking.advfab.org/v1alpha1/advancedfabrics',
+          { method: 'GET', isJSON: false }
+        );
+        if (!response?.ok)
+          throw new Error(`AdvancedFabric discovery returned HTTP ${response?.status}`);
+        const document = await response.json();
+        if (active) setState({ items: document?.items || [] });
+      } catch (error) {
+        if (active) setState(previous => ({ ...previous, error: String(error) }));
+      }
+    };
+    load();
+    const timer = window.setInterval(load, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+  return state;
+}
 
 function Dashboard() {
-  const [fabrics, error] = (AdvancedFabric as any).useList({ refetchInterval: 15000 });
-  const items = (fabrics || []).map((item: any) => item?.jsonData || item || {});
+  const fabrics = useAdvancedFabrics();
+  const items = fabrics.items || [];
   const published = items.find((item: any) => item.status?.observationAPI?.ready === true);
   const discovery = published?.status?.observationAPI;
   const serviceRef = discovery?.serviceRef;
@@ -35,9 +55,9 @@ function Dashboard() {
     };
   }, [serviceRef?.namespace, serviceRef?.name, serviceRef?.port, supported]);
 
-  if (error)
-    return <Alert severity="error">Unable to discover Advanced Fabric: {String(error)}</Alert>;
-  if (!fabrics) return <CircularProgress aria-label="Discovering Advanced Fabric" />;
+  if (fabrics.error && !fabrics.items)
+    return <Alert severity="error">Unable to discover Advanced Fabric: {fabrics.error}</Alert>;
+  if (!fabrics.items) return <CircularProgress aria-label="Discovering Advanced Fabric" />;
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="h4">Advanced Fabric</Typography>
